@@ -677,20 +677,19 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
             inventory_str = ", ".join([f"{task_id} {count} pcs" for task_id, count in inventory.items() if count > 0])
             if not inventory_str:
                 inventory_str = "None, just started"
-        if current_time_seconds % 60 == 0:
-    for worker_name, worker_data in worker_sim_data_map.items():
-        if not worker_data.is_available and worker_data.current_task_instance:
-            task_desc = f"[{worker_data.current_task_instance.task_id}] {worker_data.current_task_instance.description}"
-            schedule[current_day][worker_name][current_slot] = task_desc
-        else:
-            schedule[current_day][worker_name][current_slot] = "idle"
+            if current_time_seconds % 60 == 0:
+                for worker_name, worker_data in worker_sim_data_map.items():
+                    if not worker_data.is_available and worker_data.current_task_instance:
+                        task_desc = f"[{worker_data.current_task_instance.task_id}] {worker_data.current_task_instance.description}"
+                        schedule[current_day][worker_name][current_slot] = task_desc
+                    else:
+                        schedule[current_day][worker_name][current_slot] = "idle"
 
+            current_time_seconds += slot_duration_seconds
 
-current_time_seconds += slot_duration_seconds
+            if all(t.status == "completed" for t in all_task_instances):
+                break
 
-
-if all(t.status == "completed" for t in all_task_instances):
-    break
 
         
         return {
