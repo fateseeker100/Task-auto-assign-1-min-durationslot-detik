@@ -382,13 +382,11 @@ def calculate_skill_match(worker_skills, task_skill_requirements):
             
     return total_score / num_relevant_skills if num_relevant_skills > 0 else 0.1
 
-def format_time(minutes):
-    # Wrap within each day
-    minutes_in_day = minutes % 480
-    hours_from_start = minutes_in_day // 60
-    mins_past_hour = minutes_in_day % 60
-    display_hour = 8 + hours_from_start
-    return f"{int(display_hour):02d}:{int(mins_past_hour):02d}"
+def format_time(seconds):
+    minutes_in_day = seconds % 4800  # 8 hours * 60 minutes
+    hour = 8 + (minutes_in_day // 60)
+    minute = minutes_in_day % 60
+    return f"{int(hour):02d}:{int(minute):02d}"
 
 def get_task_group(task_id):
     """Returns a generic task group ID (e.g., 'ST1' and 'SL1' both map to 'T1')"""
@@ -470,18 +468,18 @@ def prioritize_tasks_for_flow(all_available_tasks, earliest_tasks, all_task_inst
     
     return prioritized_tasks
 
-def assign_worker_to_task(worker, task, current_time_minutes, slot_duration_minutes):
+def assign_worker_to_task(worker, task, current_time_minutes, slot_duration_seconds):
     """Assign a worker to a task"""
     worker.is_available = False
     worker.current_task_instance = task
-    worker.time_remaining_on_task = task.duration_slot * slot_duration_minutes
+    worker.time_remaining_on_task = task.duration_slot
     
     task.status = "in_progress"
     task.assigned_worker_name = worker.name
     task.start_time_minutes = current_time_minutes
 
 # --- Core Scheduling Logic ---
-def assign_tasks(products_to_produce, available_workers_df, products_df, slot_duration_minutes=1):
+def assign_tasks(products_to_produce, available_workers_df, products_df, slot_duration_seconds=1):
     """Enhanced task assignment with dynamic worker transitions and interchangeable requirements"""
     try:
         # Initialize simulation data structures
@@ -506,11 +504,11 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
 
         # Calculate simulation parameters
         total_task_slots = sum(ti.duration_slot for ti in all_task_instances)
-        total_worker_slots_per_day = len(available_workers_df) * (8 * 60 / slot_duration_minutes)
+        total_worker_slots_per_day = len(available_workers_df) * (8 * 60 / slot_duration_seconds)
         estimated_days = max(1, math.ceil(total_task_slots / total_worker_slots_per_day))
         
         # Simulation state
-        current_time_minutes = 0
+        current_time_seconds= 0
         max_simulation_time = estimated_days * 8 * 60  # 8 hours per day
         inventory = defaultdict(int)
         partial_completions = []
@@ -521,18 +519,18 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
         
         # min_gap_minutes = 180
         # Main simulation loop
-        while current_time_minutes < max_simulation_time:
+        while current_time_seconds< max_simulation_time:
             minutes_per_day = 480  # 8 hours * 60 minutes
-            current_day = current_time_minutes // minutes_per_day + 1
-            current_slot = current_time_minutes % minutes_per_day
+            current_day = current_time_seconds// minutes_per_day + 1
+            current_slot = current_time_seconds% minutes_per_day
 
-            # if current_time_minutes < min_gap_minutes:
-            #     current_time_minutes = min_gap_minutes
+            # if current_time_seconds< min_gap_minutes:
+            #     current_time_seconds= min_gap_minutes
             
             # Update worker progress
             for worker_name, worker_data in worker_sim_data_map.items():
                 if not worker_data.is_available and worker_data.current_task_instance:
-                    worker_data.time_remaining_on_task -= slot_duration_minutes
+                    worker_data.time_remaining_on_task -= slot_duration_seconds
                     
                     # Update task progress
                     task_instance = worker_data.current_task_instance
@@ -543,7 +541,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                     # Update worker progress
                     for worker_name, worker_data in worker_sim_data_map.items():
                         if not worker_data.is_available and worker_data.current_task_instance:
-                            worker_data.time_remaining_on_task -= slot_duration_minutes
+                            worker_data.time_remaining_on_task -= slot_duration_seconds
                             
                             # Update task progress
                             task_instance = worker_data.current_task_instance
@@ -595,7 +593,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                 for i, task in enumerate(level_0_tasks[:workers_for_level_0]):
                     if i < len(available_workers):
                         worker = available_workers[i]
-                        assign_worker_to_task(worker, task, current_time_minutes, slot_duration_minutes)
+                        assign_worker_to_task(worker, task, current_time_minutes, slot_duration_seconds)
                         assigned_workers.add(worker.name)
                         
                         simulation_log.append({
@@ -630,7 +628,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                             skill_score = calculate_skill_match(worker.skills, task.skill_requirements)
                             favorite_bonus = 1.2 if task.product in worker.favorite_products else 1.0
                             
-                            assign_worker_to_task(worker, task, current_time_minutes, slot_duration_minutes)
+                            assign_worker_to_task(worker, task, current_time_minutes, slot_duration_seconds)
                             assigned_workers.add(worker.name)
                             
                             simulation_log.append({
@@ -667,7 +665,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                         best_task = task
                 
                 if best_task:
-                    assign_worker_to_task(worker, best_task, current_time_minutes, slot_duration_minutes)
+                    assign_worker_to_task(worker, best_task, current_time_minutes, slot_duration_seconds)
                     remaining_tasks.remove(best_task)
                     
                     simulation_log.append({
@@ -679,7 +677,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
             inventory_str = ", ".join([f"{task_id} {count} pcs" for task_id, count in inventory.items() if count > 0])
             if not inventory_str:
                 inventory_str = "None, just started"
-            
+        if current_time_seconds % 60 == 0:
             for worker_name, worker_data in worker_sim_data_map.items():
                 if not worker_data.is_available and worker_data.current_task_instance:
                     task_desc = f"[{worker_data.current_task_instance.task_id}] {worker_data.current_task_instance.description}"
@@ -688,7 +686,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                     schedule[current_day][worker_name][current_slot] = "idle"
                     
             # Advance time
-            current_time_minutes += slot_duration_minutes
+            current_time_seconds+= slot_duration_seconds
             
             # Check if all tasks are completed
             if all(t.status == "completed" for t in all_task_instances):
@@ -1285,7 +1283,7 @@ def main():
                             products_to_produce=products_to_produce,
                             available_workers_df=available_workers_df,
                             products_df=current_products_df, # Pastikan menggunakan products_df terbaru
-                            slot_duration_minutes=1
+                            slot_duration_seconds=1
                         )
                         
                         if result:
