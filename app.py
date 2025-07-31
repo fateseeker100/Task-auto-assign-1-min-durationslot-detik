@@ -643,7 +643,13 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                         schedule[current_day][worker_name][current_slot] = "idle"
         
             # Stop if all tasks are done
+
+            incomplete = [t.instance_id for t in all_task_instances if t.status != "completed"]
             if all(t.status == "completed" for t in all_task_instances):
+                simulation_log.append({
+                    "time": format_time(current_time_seconds),
+                    "event": "✅ All tasks completed — ending simulation"
+                })
                 break
         
             # Advance time
