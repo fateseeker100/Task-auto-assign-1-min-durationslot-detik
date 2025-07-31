@@ -522,7 +522,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
         while current_time_seconds< max_simulation_time:
             minutes_per_day = 480  # 8 hours * 60 minutes
             current_day = current_time_seconds// minutes_per_day + 1
-            current_slot = current_time_seconds% minutes_per_day
+            #current_slot = current_time_seconds% minutes_per_day
 
             # if current_time_seconds< min_gap_minutes:
             #     current_time_seconds= min_gap_minutes
@@ -678,18 +678,20 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
             if not inventory_str:
                 inventory_str = "None, just started"
             if current_time_seconds % 60 == 0:
+                current_slot = (current_time_seconds % (8 * 60 * 60)) // 60
                 for worker_name, worker_data in worker_sim_data_map.items():
                     if not worker_data.is_available and worker_data.current_task_instance:
                         task_desc = f"[{worker_data.current_task_instance.task_id}] {worker_data.current_task_instance.description}"
                         schedule[current_day][worker_name][current_slot] = task_desc
                     else:
                         schedule[current_day][worker_name][current_slot] = "idle"
-
-            current_time_seconds += slot_duration_seconds
-
+                        
             if all(t.status == "completed" for t in all_task_instances):
                 break
+                
+            current_time_seconds += slot_duration_seconds
 
+            
 
         
         return {
