@@ -519,135 +519,135 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
         
         # min_gap_minutes = 180
         # Main simulation loop
-while current_time_seconds < max_simulation_time:
-    seconds_per_day = 8 * 60 * 60  # 8 hours = 28,800 seconds
-    current_day = current_time_seconds // seconds_per_day + 1
-    day_time_seconds = current_time_seconds % seconds_per_day
-
-    # Update worker progress
-    for worker_name, worker_data in worker_sim_data_map.items():
-        if not worker_data.is_available and worker_data.current_task_instance:
-            worker_data.time_remaining_on_task -= slot_duration_seconds
-
-            # Update task progress
-            task_instance = worker_data.current_task_instance
-            progress_increment = 100 / task_instance.duration_slot
-            task_instance.progress_percentage = min(100, task_instance.progress_percentage + progress_increment)
-
-            # Check if task is completed
-            if worker_data.time_remaining_on_task <= 0:
-                task_instance.status = "completed"
-                task_instance.completion_time_seconds = current_time_seconds
-                inventory[task_instance.task_id] += 1
-
-                worker_data.is_available = True
-                worker_data.current_task_instance = None
-                worker_data.time_remaining_on_task = 0
-
-                simulation_log.append({
-                    "time": format_time(current_time_seconds),
-                    "event": f"Worker {worker_name} completed {task_instance.instance_id}"
-                })
-
-    # Get available workers and tasks
-    available_workers = [w for w in worker_sim_data_map.values() if w.is_available]
-    earliest_tasks = get_earliest_available_tasks(all_task_instances, inventory, partial_completions)
-    all_available_tasks = get_available_tasks(all_task_instances, inventory, partial_completions)
-    prioritized_tasks = prioritize_tasks_for_flow(all_available_tasks, earliest_tasks, all_task_instances, inventory, partial_completions)
-
-    # Task progression mapping
-    task_progression_map = {}
-    for task in all_available_tasks:
-        level = len(task.requirements)
-        task_progression_map.setdefault(level, []).append(task)
-
-    assigned_workers = set()
-
-    # Priority 1: level 0 tasks
-    level_0_tasks = task_progression_map.get(0, [])
-    if level_0_tasks:
-        workers_for_level_0 = max(1, len(available_workers) // 2)
-        for i, task in enumerate(level_0_tasks[:workers_for_level_0]):
-            if i < len(available_workers):
-                worker = available_workers[i]
-                assign_worker_to_task(worker, task, current_time_seconds, slot_duration_seconds)
-                assigned_workers.add(worker.name)
-                simulation_log.append({
-                    "time": format_time(current_time_seconds),
-                    "event": f"Worker {worker.name} started {task.instance_id} (earliest task priority)"
-                })
-
-    # Priority 2: higher levels
-    remaining_workers = [w for w in available_workers if w.name not in assigned_workers]
-    max_level = max(task_progression_map.keys(), default=0)
-    for level in range(max_level, -1, -1):
-        if level in task_progression_map and remaining_workers:
-            level_tasks = task_progression_map[level]
-            if level > 0:
-                workers_for_this_level = min(len(remaining_workers) // 2, len(level_tasks))
-            else:
-                workers_for_this_level = min(len(remaining_workers), len(level_tasks))
-
-            for i in range(workers_for_this_level):
-                if i < len(level_tasks) and i < len(remaining_workers):
-                    worker = remaining_workers[i]
-                    task = level_tasks[i]
+        while current_time_seconds < max_simulation_time:
+            seconds_per_day = 8 * 60 * 60  # 8 hours = 28,800 seconds
+            current_day = current_time_seconds // seconds_per_day + 1
+            day_time_seconds = current_time_seconds % seconds_per_day
+        
+            # Update worker progress
+            for worker_name, worker_data in worker_sim_data_map.items():
+                if not worker_data.is_available and worker_data.current_task_instance:
+                    worker_data.time_remaining_on_task -= slot_duration_seconds
+        
+                    # Update task progress
+                    task_instance = worker_data.current_task_instance
+                    progress_increment = 100 / task_instance.duration_slot
+                    task_instance.progress_percentage = min(100, task_instance.progress_percentage + progress_increment)
+        
+                    # Check if task is completed
+                    if worker_data.time_remaining_on_task <= 0:
+                        task_instance.status = "completed"
+                        task_instance.completion_time_seconds = current_time_seconds
+                        inventory[task_instance.task_id] += 1
+        
+                        worker_data.is_available = True
+                        worker_data.current_task_instance = None
+                        worker_data.time_remaining_on_task = 0
+        
+                        simulation_log.append({
+                            "time": format_time(current_time_seconds),
+                            "event": f"Worker {worker_name} completed {task_instance.instance_id}"
+                        })
+        
+            # Get available workers and tasks
+            available_workers = [w for w in worker_sim_data_map.values() if w.is_available]
+            earliest_tasks = get_earliest_available_tasks(all_task_instances, inventory, partial_completions)
+            all_available_tasks = get_available_tasks(all_task_instances, inventory, partial_completions)
+            prioritized_tasks = prioritize_tasks_for_flow(all_available_tasks, earliest_tasks, all_task_instances, inventory, partial_completions)
+        
+            # Task progression mapping
+            task_progression_map = {}
+            for task in all_available_tasks:
+                level = len(task.requirements)
+                task_progression_map.setdefault(level, []).append(task)
+        
+            assigned_workers = set()
+        
+            # Priority 1: level 0 tasks
+            level_0_tasks = task_progression_map.get(0, [])
+            if level_0_tasks:
+                workers_for_level_0 = max(1, len(available_workers) // 2)
+                for i, task in enumerate(level_0_tasks[:workers_for_level_0]):
+                    if i < len(available_workers):
+                        worker = available_workers[i]
+                        assign_worker_to_task(worker, task, current_time_seconds, slot_duration_seconds)
+                        assigned_workers.add(worker.name)
+                        simulation_log.append({
+                            "time": format_time(current_time_seconds),
+                            "event": f"Worker {worker.name} started {task.instance_id} (earliest task priority)"
+                        })
+        
+            # Priority 2: higher levels
+            remaining_workers = [w for w in available_workers if w.name not in assigned_workers]
+            max_level = max(task_progression_map.keys(), default=0)
+            for level in range(max_level, -1, -1):
+                if level in task_progression_map and remaining_workers:
+                    level_tasks = task_progression_map[level]
+                    if level > 0:
+                        workers_for_this_level = min(len(remaining_workers) // 2, len(level_tasks))
+                    else:
+                        workers_for_this_level = min(len(remaining_workers), len(level_tasks))
+        
+                    for i in range(workers_for_this_level):
+                        if i < len(level_tasks) and i < len(remaining_workers):
+                            worker = remaining_workers[i]
+                            task = level_tasks[i]
+                            skill_score = calculate_skill_match(worker.skills, task.skill_requirements)
+                            favorite_bonus = 1.2 if task.product in worker.favorite_products else 1.0
+        
+                            assign_worker_to_task(worker, task, current_time_seconds, slot_duration_seconds)
+                            assigned_workers.add(worker.name)
+                            simulation_log.append({
+                                "time": format_time(current_time_seconds),
+                                "event": f"Worker {worker.name} started {task.instance_id} (level {level}, skill: {skill_score:.2f})"
+                            })
+        
+                    remaining_workers = [w for w in remaining_workers if w.name not in assigned_workers]
+        
+            # Priority 3: fallback
+            remaining_tasks = [t for t in all_available_tasks if t.status == "pending"]
+            for worker in remaining_workers:
+                if not remaining_tasks:
+                    break
+                st1_tasks = [t for t in remaining_tasks if t.task_id == "ST1"]
+                if st1_tasks:
+                    remaining_tasks = st1_tasks
+        
+                best_task = None
+                best_score = 0
+                for task in remaining_tasks:
                     skill_score = calculate_skill_match(worker.skills, task.skill_requirements)
                     favorite_bonus = 1.2 if task.product in worker.favorite_products else 1.0
-
-                    assign_worker_to_task(worker, task, current_time_seconds, slot_duration_seconds)
-                    assigned_workers.add(worker.name)
+                    priority_bonus = 2.0 if task.task_id == "ST1" else 1.0
+                    total_score = skill_score * favorite_bonus * priority_bonus
+                    if total_score > best_score:
+                        best_score = total_score
+                        best_task = task
+        
+                if best_task:
+                    assign_worker_to_task(worker, best_task, current_time_seconds, slot_duration_seconds)
+                    remaining_tasks.remove(best_task)
                     simulation_log.append({
                         "time": format_time(current_time_seconds),
-                        "event": f"Worker {worker.name} started {task.instance_id} (level {level}, skill: {skill_score:.2f})"
+                        "event": f"Worker {worker.name} started {best_task.instance_id} (fallback assignment)"
                     })
-
-            remaining_workers = [w for w in remaining_workers if w.name not in assigned_workers]
-
-    # Priority 3: fallback
-    remaining_tasks = [t for t in all_available_tasks if t.status == "pending"]
-    for worker in remaining_workers:
-        if not remaining_tasks:
-            break
-        st1_tasks = [t for t in remaining_tasks if t.task_id == "ST1"]
-        if st1_tasks:
-            remaining_tasks = st1_tasks
-
-        best_task = None
-        best_score = 0
-        for task in remaining_tasks:
-            skill_score = calculate_skill_match(worker.skills, task.skill_requirements)
-            favorite_bonus = 1.2 if task.product in worker.favorite_products else 1.0
-            priority_bonus = 2.0 if task.task_id == "ST1" else 1.0
-            total_score = skill_score * favorite_bonus * priority_bonus
-            if total_score > best_score:
-                best_score = total_score
-                best_task = task
-
-        if best_task:
-            assign_worker_to_task(worker, best_task, current_time_seconds, slot_duration_seconds)
-            remaining_tasks.remove(best_task)
-            simulation_log.append({
-                "time": format_time(current_time_seconds),
-                "event": f"Worker {worker.name} started {best_task.instance_id} (fallback assignment)"
-            })
-
-    # Display schedule once per minute
-    if current_time_seconds % 60 == 0:
-        current_slot = day_time_seconds // 60
-        for worker_name, worker_data in worker_sim_data_map.items():
-            if not worker_data.is_available and worker_data.current_task_instance:
-                task_desc = f"[{worker_data.current_task_instance.task_id}] {worker_data.current_task_instance.description}"
-                schedule[current_day][worker_name][current_slot] = task_desc
-            else:
-                schedule[current_day][worker_name][current_slot] = "idle"
-
-    # Stop if all tasks are done
-    if all(t.status == "completed" for t in all_task_instances):
-        break
-
-    # Advance time
-    current_time_seconds += slot_duration_seconds
+        
+            # Display schedule once per minute
+            if current_time_seconds % 60 == 0:
+                current_slot = day_time_seconds // 60
+                for worker_name, worker_data in worker_sim_data_map.items():
+                    if not worker_data.is_available and worker_data.current_task_instance:
+                        task_desc = f"[{worker_data.current_task_instance.task_id}] {worker_data.current_task_instance.description}"
+                        schedule[current_day][worker_name][current_slot] = task_desc
+                    else:
+                        schedule[current_day][worker_name][current_slot] = "idle"
+        
+            # Stop if all tasks are done
+            if all(t.status == "completed" for t in all_task_instances):
+                break
+        
+            # Advance time
+            current_time_seconds += slot_duration_seconds
 
 
             
