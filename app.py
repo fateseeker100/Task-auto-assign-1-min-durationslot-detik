@@ -181,8 +181,8 @@ class TaskInstance:
         self.status = "pending"
         self.progress_percentage = 0.0
         self.assigned_worker_name = None
-        self.start_time_minutes = None
-        self.completion_time_minutes = None
+        self.start_time_seconds = None
+        self.completion_time_seconds = None
         self.assigned_history = []
         
     def __repr__(self):
@@ -468,7 +468,7 @@ def prioritize_tasks_for_flow(all_available_tasks, earliest_tasks, all_task_inst
     
     return prioritized_tasks
 
-def assign_worker_to_task(worker, task, current_time_minutes, slot_duration_seconds):
+def assign_worker_to_task(worker, task, current_time_seconds, slot_duration_seconds):
     """Assign a worker to a task"""
     worker.is_available = False
     worker.current_task_instance = task
@@ -476,7 +476,7 @@ def assign_worker_to_task(worker, task, current_time_minutes, slot_duration_seco
     
     task.status = "in_progress"
     task.assigned_worker_name = worker.name
-    task.start_time_minutes = current_time_minutes
+    task.start_time_seconds = current_time_seconds
 
 # --- Core Scheduling Logic ---
 def assign_tasks(products_to_produce, available_workers_df, products_df, slot_duration_seconds=1):
@@ -551,7 +551,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                             # Check if task is completed
                             if worker_data.time_remaining_on_task <= 0:
                                 task_instance.status = "completed"  # Task sudah selesai
-                                task_instance.completion_time_minutes = current_time_minutes
+                                task_instance.completion_time_seconds = current_time_seconds
                                 inventory[task_instance.task_id] += 1  # Menambah inventory dengan task yang selesai
                                 
                                 worker_data.is_available = True  # Worker siap untuk tugas lain
@@ -560,7 +560,7 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
 
                         
                         simulation_log.append({
-                            "time": format_time(current_time_minutes),
+                            "time": format_time(current_time_seconds),
                             "event": f"Worker {worker_name} completed {task_instance.instance_id}"
                         })
             
@@ -593,11 +593,11 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                 for i, task in enumerate(level_0_tasks[:workers_for_level_0]):
                     if i < len(available_workers):
                         worker = available_workers[i]
-                        assign_worker_to_task(worker, task, current_time_minutes, slot_duration_seconds)
+                        assign_worker_to_task(worker, task, current_time_seconds, slot_duration_seconds)
                         assigned_workers.add(worker.name)
                         
                         simulation_log.append({
-                            "time": format_time(current_time_minutes),
+                            "time": format_time(current_time_seconds),
                             "event": f"Worker {worker.name} started {task.instance_id} (earliest task priority)"
                         })
             
@@ -628,11 +628,11 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                             skill_score = calculate_skill_match(worker.skills, task.skill_requirements)
                             favorite_bonus = 1.2 if task.product in worker.favorite_products else 1.0
                             
-                            assign_worker_to_task(worker, task, current_time_minutes, slot_duration_seconds)
+                            assign_worker_to_task(worker, task, current_time_seconds, slot_duration_seconds)
                             assigned_workers.add(worker.name)
                             
                             simulation_log.append({
-                                "time": format_time(current_time_minutes),
+                                "time": format_time(current_time_seconds),
                                 "event": f"Worker {worker.name} started {task.instance_id} (level {level}, skill: {skill_score:.2f})"
                             })
                     
@@ -665,11 +665,11 @@ def assign_tasks(products_to_produce, available_workers_df, products_df, slot_du
                         best_task = task
                 
                 if best_task:
-                    assign_worker_to_task(worker, best_task, current_time_minutes, slot_duration_seconds)
+                    assign_worker_to_task(worker, best_task, current_time_seconds, slot_duration_seconds)
                     remaining_tasks.remove(best_task)
                     
                     simulation_log.append({
-                        "time": format_time(current_time_minutes),
+                        "time": format_time(current_time_seconds),
                         "event": f"Worker {worker.name} started {best_task.instance_id} (fallback assignment)"
                     })
             
